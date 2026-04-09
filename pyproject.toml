@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quant-factor-backtest"
+version = "0.1.0"
+description = "A minimal multi-factor research and backtest framework."
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+data = ["tushare>=1.4.18"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
