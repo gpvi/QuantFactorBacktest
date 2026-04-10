@@ -5,6 +5,24 @@ from typing import Any
 
 import polars as pl
 
+from ...constants.tushare import (
+    COLUMN_ADJ_FACTOR,
+    COLUMN_AMOUNT,
+    COLUMN_CLOSE,
+    COLUMN_DOWN_LIMIT,
+    COLUMN_IS_LIMIT_DOWN,
+    COLUMN_IS_LIMIT_UP,
+    COLUMN_IS_ST,
+    COLUMN_IS_SUSPENDED,
+    COLUMN_LIST_DATE,
+    COLUMN_LISTED_DAYS,
+    COLUMN_NAME,
+    COLUMN_PRICE,
+    COLUMN_TRADE_DATE,
+    COLUMN_TS_CODE,
+    COLUMN_UP_LIMIT,
+    COLUMN_VALUE,
+)
 from ..models import RecordsByDate
 
 
@@ -17,9 +35,9 @@ def build_price_table(
 ) -> pl.DataFrame:
     daily_price_rows = [
         {
-            "trade_date": trade_date,
-            "ts_code": str(row["ts_code"]),
-            "close": float(row["close"]),
+            COLUMN_TRADE_DATE: trade_date,
+            COLUMN_TS_CODE: str(row[COLUMN_TS_CODE]),
+            COLUMN_CLOSE: float(row[COLUMN_CLOSE]),
         }
         for trade_date in trade_dates
         for row in daily_rows_by_date.get(trade_date, [])
@@ -27,10 +45,10 @@ def build_price_table(
     if not daily_price_rows:
         return pl.DataFrame(
             schema={
-                "trade_date": pl.Utf8,
-                "ts_code": pl.Utf8,
-                "close": pl.Float64,
-                "price": pl.Float64,
+                COLUMN_TRADE_DATE: pl.Utf8,
+                COLUMN_TS_CODE: pl.Utf8,
+                COLUMN_CLOSE: pl.Float64,
+                COLUMN_PRICE: pl.Float64,
             }
         )
 
@@ -38,9 +56,9 @@ def build_price_table(
     if use_adj and adj_rows_by_date:
         adjustment_rows = [
             {
-                "trade_date": trade_date,
-                "ts_code": str(row["ts_code"]),
-                "adj_factor": float(row["adj_factor"]),
+                COLUMN_TRADE_DATE: trade_date,
+                COLUMN_TS_CODE: str(row[COLUMN_TS_CODE]),
+                COLUMN_ADJ_FACTOR: float(row[COLUMN_ADJ_FACTOR]),
             }
             for trade_date in trade_dates
             for row in adj_rows_by_date.get(trade_date, [])
@@ -49,17 +67,17 @@ def build_price_table(
             adjustment_table = pl.DataFrame(adjustment_rows)
             return daily_price_table.join(
                 adjustment_table,
-                on=["trade_date", "ts_code"],
+                on=[COLUMN_TRADE_DATE, COLUMN_TS_CODE],
                 how="left",
             ).with_columns(
                 # When no adjustment factor exists for a row we keep the raw close
                 # so sparse adj_factor data does not drop otherwise valid prices.
-                pl.when(pl.col("adj_factor").is_not_null())
-                .then(pl.col("close") * pl.col("adj_factor"))
-                .otherwise(pl.col("close"))
-                .alias("price")
+                pl.when(pl.col(COLUMN_ADJ_FACTOR).is_not_null())
+                .then(pl.col(COLUMN_CLOSE) * pl.col(COLUMN_ADJ_FACTOR))
+                .otherwise(pl.col(COLUMN_CLOSE))
+                .alias(COLUMN_PRICE)
             )
-    return daily_price_table.with_columns(pl.col("close").alias("price"))
+    return daily_price_table.with_columns(pl.col(COLUMN_CLOSE).alias(COLUMN_PRICE))
 
 
 def build_universe_table(
@@ -81,51 +99,58 @@ def build_universe_table(
     if price_table.height == 0:
         return pl.DataFrame(
             schema={
-                "trade_date": pl.Utf8,
-                "ts_code": pl.Utf8,
-                "price": pl.Float64,
-                "amount": pl.Float64,
-                "is_st": pl.Boolean,
-                "is_suspended": pl.Boolean,
-                "listed_days": pl.Int64,
-                "is_limit_up": pl.Boolean,
-                "is_limit_down": pl.Boolean,
+                COLUMN_TRADE_DATE: pl.Utf8,
+                COLUMN_TS_CODE: pl.Utf8,
+                COLUMN_PRICE: pl.Float64,
+                COLUMN_AMOUNT: pl.Float64,
+                COLUMN_IS_ST: pl.Boolean,
+                COLUMN_IS_SUSPENDED: pl.Boolean,
+                COLUMN_LISTED_DAYS: pl.Int64,
+                COLUMN_IS_LIMIT_UP: pl.Boolean,
+                COLUMN_IS_LIMIT_DOWN: pl.Boolean,
             }
         )
 
     daily_turnover_table = pl.DataFrame(
         [
             {
-                "trade_date": trade_date,
-                "ts_code": str(row["ts_code"]),
-                "amount": float(row.get("amount", 0.0)),
+                COLUMN_TRADE_DATE: trade_date,
+                COLUMN_TS_CODE: str(row[COLUMN_TS_CODE]),
+                COLUMN_AMOUNT: float(row.get(COLUMN_AMOUNT, 0.0)),
             }
             for trade_date in trade_dates
             for row in daily_rows_by_date.get(trade_date, [])
         ]
     )
-    universe_table = price_table.join(daily_turnover_table, on=["trade_date", "ts_code"], how="left")
+    universe_table = price_table.join(
+        daily_turnover_table,
+        on=[COLUMN_TRADE_DATE, COLUMN_TS_CODE],
+        how="left",
+    )
 
     stock_basic_table = pl.DataFrame(
         [
             {
-                "ts_code": str(record["ts_code"]),
-                "name": str(record.get("name", "")),
-                "list_date": str(record.get("list_date", "")),
+                COLUMN_TS_CODE: str(record[COLUMN_TS_CODE]),
+                COLUMN_NAME: str(record.get(COLUMN_NAME, "")),
+                COLUMN_LIST_DATE: str(record.get(COLUMN_LIST_DATE, "")),
             }
             for record in stock_basic_records
         ]
     )
     if stock_basic_table.height > 0:
-        universe_table = universe_table.join(stock_basic_table, on="ts_code", how="left")
+        universe_table = universe_table.join(stock_basic_table, on=COLUMN_TS_CODE, how="left")
     else:
-        universe_table = universe_table.with_columns(pl.lit("").alias("name"), pl.lit("").alias("list_date"))
+        universe_table = universe_table.with_columns(
+            pl.lit("").alias(COLUMN_NAME),
+            pl.lit("").alias(COLUMN_LIST_DATE),
+        )
 
     suspension_rows = [
         {
-            "trade_date": trade_date,
-            "ts_code": str(row["ts_code"]),
-            "is_suspended": True,
+            COLUMN_TRADE_DATE: trade_date,
+            COLUMN_TS_CODE: str(row[COLUMN_TS_CODE]),
+            COLUMN_IS_SUSPENDED: True,
         }
         for trade_date in trade_dates
         for row in suspend_rows_by_date.get(trade_date, [])
@@ -134,18 +159,18 @@ def build_universe_table(
         suspension_table = pl.DataFrame(suspension_rows)
         universe_table = universe_table.join(
             suspension_table,
-            on=["trade_date", "ts_code"],
+            on=[COLUMN_TRADE_DATE, COLUMN_TS_CODE],
             how="left",
         )
     else:
-        universe_table = universe_table.with_columns(pl.lit(None).alias("is_suspended"))
+        universe_table = universe_table.with_columns(pl.lit(None).alias(COLUMN_IS_SUSPENDED))
 
     limit_rows = [
         {
-            "trade_date": trade_date,
-            "ts_code": str(row["ts_code"]),
-            "up_limit": float(row.get("up_limit", 0.0)),
-            "down_limit": float(row.get("down_limit", 0.0)),
+            COLUMN_TRADE_DATE: trade_date,
+            COLUMN_TS_CODE: str(row[COLUMN_TS_CODE]),
+            COLUMN_UP_LIMIT: float(row.get(COLUMN_UP_LIMIT, 0.0)),
+            COLUMN_DOWN_LIMIT: float(row.get(COLUMN_DOWN_LIMIT, 0.0)),
         }
         for trade_date in trade_dates
         for row in limit_rows_by_date.get(trade_date, [])
@@ -154,45 +179,50 @@ def build_universe_table(
         limit_table = pl.DataFrame(limit_rows)
         universe_table = universe_table.join(
             limit_table,
-            on=["trade_date", "ts_code"],
+            on=[COLUMN_TRADE_DATE, COLUMN_TS_CODE],
             how="left",
         )
     else:
-        universe_table = universe_table.with_columns(pl.lit(0.0).alias("up_limit"), pl.lit(0.0).alias("down_limit"))
+        universe_table = universe_table.with_columns(
+            pl.lit(0.0).alias(COLUMN_UP_LIMIT),
+            pl.lit(0.0).alias(COLUMN_DOWN_LIMIT),
+        )
 
     # Nulls are normalized before deriving boolean flags so every downstream rule
     # can treat "missing metadata" as an explicit default.
     return universe_table.with_columns(
-        pl.col("amount").fill_null(0.0),
-        pl.col("name").fill_null(""),
-        pl.col("list_date").fill_null(""),
-        pl.col("is_suspended").fill_null(False),
-        pl.col("up_limit").fill_null(0.0),
-        pl.col("down_limit").fill_null(0.0),
+        pl.col(COLUMN_AMOUNT).fill_null(0.0),
+        pl.col(COLUMN_NAME).fill_null(""),
+        pl.col(COLUMN_LIST_DATE).fill_null(""),
+        pl.col(COLUMN_IS_SUSPENDED).fill_null(False),
+        pl.col(COLUMN_UP_LIMIT).fill_null(0.0),
+        pl.col(COLUMN_DOWN_LIMIT).fill_null(0.0),
     ).with_columns(
-        pl.col("name").str.to_uppercase().str.contains("ST").alias("is_st"),
-        pl.struct(["trade_date", "list_date"]).map_elements(
-            lambda value: _days_since_listing(str(value["trade_date"]), str(value["list_date"])),
+        pl.col(COLUMN_NAME).str.to_uppercase().str.contains("ST").alias(COLUMN_IS_ST),
+        pl.struct([COLUMN_TRADE_DATE, COLUMN_LIST_DATE]).map_elements(
+            lambda value: _days_since_listing(str(value[COLUMN_TRADE_DATE]), str(value[COLUMN_LIST_DATE])),
             return_dtype=pl.Int64,
-        ).alias("listed_days"),
-        ((pl.col("up_limit") != 0.0) & (pl.col("close") >= pl.col("up_limit"))).alias("is_limit_up"),
-        ((pl.col("down_limit") != 0.0) & (pl.col("close") <= pl.col("down_limit"))).alias("is_limit_down"),
+        ).alias(COLUMN_LISTED_DAYS),
+        ((pl.col(COLUMN_UP_LIMIT) != 0.0) & (pl.col(COLUMN_CLOSE) >= pl.col(COLUMN_UP_LIMIT))).alias(COLUMN_IS_LIMIT_UP),
+        ((pl.col(COLUMN_DOWN_LIMIT) != 0.0) & (pl.col(COLUMN_CLOSE) <= pl.col(COLUMN_DOWN_LIMIT))).alias(COLUMN_IS_LIMIT_DOWN),
     )
 
 
 def build_factor_table(trade_dates: list[str], records_by_date: RecordsByDate, field: str) -> pl.DataFrame:
     factor_rows = [
         {
-            "trade_date": trade_date,
-            "ts_code": str(record["ts_code"]),
-            "value": float(record[field]),
+            COLUMN_TRADE_DATE: trade_date,
+            COLUMN_TS_CODE: str(record[COLUMN_TS_CODE]),
+            COLUMN_VALUE: float(record[field]),
         }
         for trade_date in trade_dates
         for record in records_by_date.get(trade_date, [])
         if record.get(field) is not None
     ]
     if not factor_rows:
-        return pl.DataFrame(schema={"trade_date": pl.Utf8, "ts_code": pl.Utf8, "value": pl.Float64})
+        return pl.DataFrame(
+            schema={COLUMN_TRADE_DATE: pl.Utf8, COLUMN_TS_CODE: pl.Utf8, COLUMN_VALUE: pl.Float64}
+        )
     return pl.DataFrame(factor_rows)
 
 

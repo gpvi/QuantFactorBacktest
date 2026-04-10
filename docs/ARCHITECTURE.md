@@ -12,8 +12,9 @@
 - 后续优先优化方向
 
 它不是用户入门文档，而是面向后续开发、维护和扩展的工程说明。
-如果要看策略逻辑、指标公式和优缺点分析，见 [STRATEGY.md](/E:/Projects/QuantFactorBacktest/docs/STRATEGY.md)。
-如果要看按函数粒度展开的数据流，见 [DATA_FLOW.md](/E:/Projects/QuantFactorBacktest/docs/DATA_FLOW.md)。
+如果要看策略逻辑、指标公式和优缺点分析，见 [STRATEGY.md](STRATEGY.md)。
+如果要看按函数粒度展开的数据流，见 [DATA_FLOW.md](DATA_FLOW.md)。
+如果你是第一次参与这个项目的开发，建议先读 [WIKI.md](WIKI.md)。
 
 ## 2. 当前框架定位
 
@@ -41,7 +42,7 @@
 
 ### 3.1 `domain`
 
-路径：[domain.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/domain.py)
+路径：[domain.py](../src/quant_factor_backtest/domain.py)
 
 这一层定义框架内部的核心对象，是所有模块之间的统一语言。
 
@@ -65,11 +66,11 @@
 
 路径：
 
-- [cache.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/cache.py)
-- [client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
-- [fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
-- [assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
-- [convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
+- [cache.py](../src/quant_factor_backtest/data/cache.py)
+- [client.py](../src/quant_factor_backtest/data/tushare/client.py)
+- [fetch.py](../src/quant_factor_backtest/data/tushare/fetch.py)
+- [assemble.py](../src/quant_factor_backtest/data/tushare/assemble.py)
+- [convert.py](../src/quant_factor_backtest/data/tushare/convert.py)
 
 这一层负责外部数据源接入和转换。
 
@@ -111,7 +112,7 @@
 
 ### 3.3 `universe`
 
-路径：[filters.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/universe/filters.py)
+路径：[filters.py](../src/quant_factor_backtest/universe/filters.py)
 
 这一层负责股票池过滤。
 
@@ -135,7 +136,7 @@
 
 ### 3.4 `factors`
 
-路径：[builtin.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/factors/builtin.py)
+路径：[builtin.py](../src/quant_factor_backtest/factors/builtin.py)
 
 这一层负责具体因子定义。
 
@@ -156,7 +157,7 @@
 
 ### 3.5 `research`
 
-路径：[pipeline.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/research/pipeline.py)
+路径：[pipeline.py](../src/quant_factor_backtest/research/pipeline.py)
 
 这一层负责研究编排，是主链路核心。
 
@@ -183,7 +184,7 @@
 
 ### 3.6 `portfolio`
 
-路径：[construction.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/portfolio/construction.py)
+路径：[construction.py](../src/quant_factor_backtest/portfolio/construction.py)
 
 这一层负责把综合评分映射成目标组合。
 
@@ -206,7 +207,7 @@
 
 ### 3.7 `backtest`
 
-路径：[engine.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/backtest/engine.py)
+路径：[engine.py](../src/quant_factor_backtest/backtest/engine.py)
 
 这一层负责根据权重和价格执行回测并输出结果。
 
@@ -255,7 +256,7 @@
 - `build_universe_table()` 在哪一步补 `is_st / listed_days`
 - `MarketData` 在哪里被重新转回 `DataFrame`
 
-请直接看 [DATA_FLOW.md](/E:/Projects/QuantFactorBacktest/docs/DATA_FLOW.md)。
+请直接看 [DATA_FLOW.md](DATA_FLOW.md)。
 
 ## 5. 当前已经做过的优化点
 
@@ -389,6 +390,48 @@
 
 这意味着框架已经从“纯示意性研究”向“更接近实盘约束的研究”迈了一步。
 
+### 6.4 常量放置约定
+
+当前项目已经把常量集中到：
+
+- [factors.py](../src/quant_factor_backtest/constants/factors.py)
+- [portfolio.py](../src/quant_factor_backtest/constants/portfolio.py)
+- [backtest.py](../src/quant_factor_backtest/constants/backtest.py)
+- [tushare.py](../src/quant_factor_backtest/constants/tushare.py)
+
+约定如下：
+
+- 放到 `constants/factors.py`
+  当常量主要服务于因子定义和研究层命名时，例如：
+  公共因子名称、综合因子名称
+
+- 放到 `constants/portfolio.py`
+  当常量主要服务于组合构建层时，例如：
+  调仓频率、默认选股比例
+
+- 放到 `constants/backtest.py`
+  当常量主要服务于回测引擎和绩效指标时，例如：
+  默认回测参数、回测指标名称、换手率和收益计算中的共享数值语义
+
+- 放到 `constants/tushare.py`
+  当常量只服务于 `Tushare` 数据接入链路时，例如：
+  endpoint 名称、API 参数名、原始字段名、标准列名、默认查询字段、`Tushare` 默认配置
+
+- 不要提成常量
+  当某个值只是局部实现细节，离开当前函数几乎不会复用时，不建议为了“统一管理”强行抽离。
+  典型例子包括：
+  只在一行表达式里出现、语义已经很直观的 `0.0 / 1.0`
+  临时列表长度判断
+  单个函数内部一次性使用的切片、偏移、占位值
+
+判断标准是：
+
+- 这个值是否跨文件或跨模块共享
+- 它的名字是否能显著降低误用风险
+- 它未来是否有较大概率被统一修改
+
+如果三个问题大多是否定的，就更适合保留在局部代码里，避免过度抽象。
+
 ## 7. 当前局限
 
 当前仍然有一些明确限制。
@@ -470,16 +513,16 @@
 
 如果新开发者要快速理解这个项目，建议按下面顺序看代码：
 
-1. [domain.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/domain.py)
-2. [pipeline.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/research/pipeline.py)
-3. [construction.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/portfolio/construction.py)
-4. [engine.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/backtest/engine.py)
-5. [filters.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/universe/filters.py)
-6. [client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
-7. [fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
-8. [assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
-9. [convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
-10. [tests](/E:/Projects/QuantFactorBacktest/tests)
+1. [domain.py](../src/quant_factor_backtest/domain.py)
+2. [pipeline.py](../src/quant_factor_backtest/research/pipeline.py)
+3. [construction.py](../src/quant_factor_backtest/portfolio/construction.py)
+4. [engine.py](../src/quant_factor_backtest/backtest/engine.py)
+5. [filters.py](../src/quant_factor_backtest/universe/filters.py)
+6. [client.py](../src/quant_factor_backtest/data/tushare/client.py)
+7. [fetch.py](../src/quant_factor_backtest/data/tushare/fetch.py)
+8. [assemble.py](../src/quant_factor_backtest/data/tushare/assemble.py)
+9. [convert.py](../src/quant_factor_backtest/data/tushare/convert.py)
+10. [tests](../tests)
 
 ## 10. 总结
 

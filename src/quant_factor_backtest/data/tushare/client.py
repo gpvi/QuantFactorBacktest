@@ -3,6 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from ...constants.tushare import (
+    ADJ_FACTOR_FIELDS,
+    CACHE_FILENAME,
+    COLUMN_TRADE_DATE,
+    DAILY_BASIC_DEFAULT_FIELDS,
+    DAILY_PRICE_FIELDS,
+    ENDPOINT_ADJ_FACTOR,
+    ENDPOINT_DAILY,
+    ENDPOINT_DAILY_BASIC,
+    ENDPOINT_STK_LIMIT,
+    ENDPOINT_STOCK_BASIC,
+    ENDPOINT_SUSPEND_D,
+    QUERY_SCOPE_ALL,
+    STK_LIMIT_FIELDS,
+    STOCK_BASIC_FIELDS,
+    SUSPEND_D_FIELDS,
+)
 from ..cache import CacheBackend, NullCache, SqliteCache
 from ..models import RawRecords, RecordsByDate
 from .assemble import build_factor_table, build_price_table, build_universe_table
@@ -32,10 +49,10 @@ class TushareDataClient:
         ts_codes: list[str],
     ) -> MarketData:
         daily_records_by_date = self._load_or_fetch_by_trade_dates(
-            endpoint="daily",
+            endpoint=ENDPOINT_DAILY,
             trade_dates=trade_dates,
             ts_codes=ts_codes,
-            fields="ts_code,trade_date,close,amount",
+            fields=DAILY_PRICE_FIELDS,
         )
         adjustment_records_by_date = self._load_adj_factor_by_trade_dates(
             trade_dates=trade_dates,
@@ -55,32 +72,32 @@ class TushareDataClient:
         ts_codes: list[str],
     ) -> MarketData:
         stock_basic_records = self._load_or_fetch(
-            endpoint="stock_basic",
-            trade_date="all",
+            endpoint=ENDPOINT_STOCK_BASIC,
+            trade_date=QUERY_SCOPE_ALL,
             ts_codes=[],
-            fields="ts_code,name,list_date",
+            fields=STOCK_BASIC_FIELDS,
         )
         daily_records_by_date = self._load_or_fetch_by_trade_dates(
-            endpoint="daily",
+            endpoint=ENDPOINT_DAILY,
             trade_dates=trade_dates,
             ts_codes=ts_codes,
-            fields="ts_code,trade_date,close,amount",
+            fields=DAILY_PRICE_FIELDS,
         )
         adjustment_records_by_date = self._load_adj_factor_by_trade_dates(
             trade_dates=trade_dates,
             ts_codes=ts_codes,
         )
         suspension_records_by_date = self._load_or_fetch_by_trade_dates(
-            endpoint="suspend_d",
+            endpoint=ENDPOINT_SUSPEND_D,
             trade_dates=trade_dates,
             ts_codes=[],
-            fields="ts_code,trade_date,suspend_type",
+            fields=SUSPEND_D_FIELDS,
         )
         limit_records_by_date = self._load_or_fetch_by_trade_dates(
-            endpoint="stk_limit",
+            endpoint=ENDPOINT_STK_LIMIT,
             trade_dates=trade_dates,
             ts_codes=ts_codes,
-            fields="ts_code,trade_date,up_limit,down_limit",
+            fields=STK_LIMIT_FIELDS,
         )
         universe_table = build_universe_table(
             trade_dates=trade_dates,
@@ -96,10 +113,10 @@ class TushareDataClient:
     def fetch_daily_basic(
         self,
         trade_date: str,
-        fields: str = "ts_code,trade_date,pe,pb,total_mv",
+        fields: str = DAILY_BASIC_DEFAULT_FIELDS,
     ) -> RawRecords:
         return self._load_or_fetch(
-            endpoint="daily_basic",
+            endpoint=ENDPOINT_DAILY_BASIC,
             trade_date=trade_date,
             ts_codes=[],
             fields=fields,
@@ -113,7 +130,7 @@ class TushareDataClient:
     ) -> FactorSignal:
         requested_fields = f"ts_code,trade_date,{field}"
         daily_basic_records_by_date = self._load_or_fetch_by_trade_dates(
-            endpoint="daily_basic",
+            endpoint=ENDPOINT_DAILY_BASIC,
             trade_dates=trade_dates,
             ts_codes=[],
             fields=requested_fields,
@@ -125,10 +142,10 @@ class TushareDataClient:
         if not self.config.adj:
             return {}
         return self._load_or_fetch_by_trade_dates(
-            endpoint="adj_factor",
+            endpoint=ENDPOINT_ADJ_FACTOR,
             trade_dates=trade_dates,
             ts_codes=ts_codes,
-            fields="ts_code,trade_date,adj_factor",
+            fields=ADJ_FACTOR_FIELDS,
         )
 
     def _load_or_fetch(
@@ -225,14 +242,14 @@ class TushareDataClient:
 
         records_grouped_by_trade_date: RecordsByDate = {trade_date: [] for trade_date in sorted_trade_dates}
         for fetched_record in fetched_records:
-            trade_date = str(fetched_record.get("trade_date", ""))
+            trade_date = str(fetched_record.get(COLUMN_TRADE_DATE, ""))
             if trade_date in requested_trade_dates:
                 records_grouped_by_trade_date.setdefault(trade_date, []).append(fetched_record)
         return records_grouped_by_trade_date
 
     def _default_cache_backend(self) -> CacheBackend:
         if self.config.cache_dir:
-            return SqliteCache(db_path=str(Path(self.config.cache_dir) / "cache.sqlite3"))
+            return SqliteCache(db_path=str(Path(self.config.cache_dir) / CACHE_FILENAME))
         return NullCache()
 
     def _cache_key(
@@ -242,6 +259,6 @@ class TushareDataClient:
         ts_codes: list[str],
         fields: str,
     ) -> str:
-        code_key = "all" if not ts_codes else "_".join(sorted(ts_codes)).replace(".", "_")
+        code_key = QUERY_SCOPE_ALL if not ts_codes else "_".join(sorted(ts_codes)).replace(".", "_")
         field_key = fields.replace(",", "_")
         return f"{endpoint}/{trade_date}__{code_key}__{field_key}"

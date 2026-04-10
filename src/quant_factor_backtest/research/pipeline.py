@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import sqrt
 
 from ..backtest.engine import BacktestEngine, BacktestResult
+from ..constants import COMPOSITE_FACTOR_NAME
 from ..domain import FactorSignal, MarketData, PortfolioWeights, TimeSeriesMatrix
 from ..factors.base import Factor
 from ..portfolio.construction import TopNPercentLongOnlyConstructor
@@ -47,7 +48,7 @@ class CompositeFactorModel:
                 asset: sum(weight * normalized.get(asset, 0.0) for weight, normalized in per_factor)
                 for asset in assets
             }
-        return FactorSignal(name="composite", values=combined)
+        return FactorSignal(name=COMPOSITE_FACTOR_NAME, values=combined)
 
 
 @dataclass(frozen=True)

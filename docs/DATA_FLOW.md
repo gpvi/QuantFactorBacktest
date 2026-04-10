@@ -11,19 +11,19 @@
 - 排查缓存、复权、股票池元数据、因子信号的来源
 - 后续重构 `research / portfolio / backtest` 时对照当前链路
 
-如果要看分层设计，请读 [ARCHITECTURE.md](/E:/Projects/QuantFactorBacktest/docs/ARCHITECTURE.md)。
+如果要看分层设计，请读 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 2. 数据层主链路
 
 当前 `Tushare` 数据层按下面 4 个模块协作：
 
-- [fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
+- [fetch.py](../src/quant_factor_backtest/data/tushare/fetch.py)
   负责访问外部 API，返回原始 `records`
-- [client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+- [client.py](../src/quant_factor_backtest/data/tushare/client.py)
   负责缓存与编排
-- [assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
+- [assemble.py](../src/quant_factor_backtest/data/tushare/assemble.py)
   负责把原始 `records` 组装成 `polars.DataFrame`
-- [convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
+- [convert.py](../src/quant_factor_backtest/data/tushare/convert.py)
   负责把中间表转换成 `MarketData` / `FactorSignal`
 
 统一的数据形态如下：
@@ -43,7 +43,7 @@
 
 入口函数：
 
-- [TushareDataClient.fetch_market_data()](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+- [TushareDataClient.fetch_market_data()](../src/quant_factor_backtest/data/tushare/client.py)
 
 调用顺序：
 
@@ -86,7 +86,7 @@
 
 入口函数：
 
-- [TushareDataClient.fetch_market_data_with_universe_metadata()](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+- [TushareDataClient.fetch_market_data_with_universe_metadata()](../src/quant_factor_backtest/data/tushare/client.py)
 
 调用顺序：
 
@@ -139,7 +139,7 @@
 
 入口函数：
 
-- [TushareDataClient.fetch_daily_basic()](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+- [TushareDataClient.fetch_daily_basic()](../src/quant_factor_backtest/data/tushare/client.py)
 
 调用顺序：
 
@@ -153,7 +153,7 @@
 
 入口函数：
 
-- [TushareDataClient.fetch_factor_signal()](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+- [TushareDataClient.fetch_factor_signal()](../src/quant_factor_backtest/data/tushare/client.py)
 
 调用顺序：
 
@@ -181,7 +181,7 @@
 
 ## 4. 缓存流
 
-缓存编排全部发生在 [client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)。
+缓存编排全部发生在 [client.py](../src/quant_factor_backtest/data/tushare/client.py)。
 
 ### 4.1 单次查询 `_load_or_fetch`
 
@@ -232,7 +232,7 @@
 
 ## 5. Fetch 层函数
 
-路径：[fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
+路径：[fetch.py](../src/quant_factor_backtest/data/tushare/fetch.py)
 
 ### 5.1 `TushareFetcher.fetch_records`
 
@@ -267,7 +267,7 @@
 
 ## 6. Assemble 层函数
 
-路径：[assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
+路径：[assemble.py](../src/quant_factor_backtest/data/tushare/assemble.py)
 
 ### 6.1 `build_price_table`
 
@@ -348,7 +348,7 @@
 
 ## 7. Convert 层函数
 
-路径：[convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
+路径：[convert.py](../src/quant_factor_backtest/data/tushare/convert.py)
 
 ### 7.1 `price_table_to_market_data`
 
@@ -428,7 +428,7 @@
 
 入口函数：
 
-- [UniverseFilter.apply()](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/universe/filters.py)
+- [UniverseFilter.apply()](../src/quant_factor_backtest/universe/filters.py)
 
 调用顺序：
 

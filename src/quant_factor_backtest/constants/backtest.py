@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+# 默认回测参数。
+DEFAULT_INITIAL_CAPITAL = 1.0
+DEFAULT_ANNUALIZATION_FACTOR = 252
+DEFAULT_TRANSACTION_COST_RATE = 0.0
+DEFAULT_SLIPPAGE_RATE = 0.0
+
+# 组合和回测计算里复用的数值语义常量。
+FULL_TURNOVER_ON_FIRST_REBALANCE = 1.0
+HALF_TURNOVER_SCALE = 0.5
+POSITIVE_RETURN_THRESHOLD = 0.0
+ZERO_FLOAT = 0.0
+
+# BacktestResult.metrics 对外暴露的指标 key。
+METRIC_ANNUALIZED_RETURN = "annualized_return"
+METRIC_ANNUALIZED_VOLATILITY = "annualized_volatility"
+METRIC_SHARPE_RATIO = "sharpe_ratio"
+METRIC_MAX_DRAWDOWN = "max_drawdown"
+METRIC_WIN_RATE = "win_rate"
+METRIC_TURNOVER_RATE = "turnover_rate"

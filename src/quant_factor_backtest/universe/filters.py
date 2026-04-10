@@ -4,6 +4,17 @@ from dataclasses import dataclass
 
 import polars as pl
 
+from ..constants.tushare import (
+    COLUMN_ASSET,
+    COLUMN_IS_LIMIT_DOWN,
+    COLUMN_IS_LIMIT_UP,
+    COLUMN_IS_ST,
+    COLUMN_IS_SUSPENDED,
+    COLUMN_LISTED_DAYS,
+    COLUMN_PRICE,
+    COLUMN_TRADE_DATE,
+    COLUMN_TURNOVER_AMOUNT,
+)
 from ..data.tushare.convert import filtered_market_data_from_frame, market_data_to_table
 from ..domain import FactorSignal, MarketData, TimeSeriesMatrix
 
@@ -36,19 +47,19 @@ class UniverseFilter:
         market_table = market_data_to_table(market_data)
         filter_expressions: list[pl.Expr] = []
         if self.config.min_price is not None:
-            filter_expressions.append(pl.col("price") >= self.config.min_price)
+            filter_expressions.append(pl.col(COLUMN_PRICE) >= self.config.min_price)
         if self.config.exclude_st:
-            filter_expressions.append(~pl.col("is_st"))
+            filter_expressions.append(~pl.col(COLUMN_IS_ST))
         if self.config.exclude_suspended:
-            filter_expressions.append(~pl.col("is_suspended"))
+            filter_expressions.append(~pl.col(COLUMN_IS_SUSPENDED))
         if self.config.min_listed_days is not None:
-            filter_expressions.append(pl.col("listed_days") >= self.config.min_listed_days)
+            filter_expressions.append(pl.col(COLUMN_LISTED_DAYS) >= self.config.min_listed_days)
         if self.config.exclude_limit_up:
-            filter_expressions.append(~pl.col("is_limit_up"))
+            filter_expressions.append(~pl.col(COLUMN_IS_LIMIT_UP))
         if self.config.exclude_limit_down:
-            filter_expressions.append(~pl.col("is_limit_down"))
+            filter_expressions.append(~pl.col(COLUMN_IS_LIMIT_DOWN))
         if self.config.min_turnover_amount is not None:
-            filter_expressions.append(pl.col("turnover_amount") >= self.config.min_turnover_amount)
+            filter_expressions.append(pl.col(COLUMN_TURNOVER_AMOUNT) >= self.config.min_turnover_amount)
 
         filtered_table = market_table
         for filter_expression in filter_expressions:
@@ -57,7 +68,7 @@ class UniverseFilter:
         manually_excluded_assets = self.config.excluded_assets or {}
         if manually_excluded_assets:
             excluded_asset_rows = [
-                {"trade_date": date, "asset": asset}
+                {COLUMN_TRADE_DATE: date, COLUMN_ASSET: asset}
                 for date, assets in manually_excluded_assets.items()
                 for asset in assets
             ]
@@ -65,14 +76,14 @@ class UniverseFilter:
                 excluded_asset_table = pl.DataFrame(excluded_asset_rows)
                 filtered_table = filtered_table.join(
                     excluded_asset_table,
-                    on=["trade_date", "asset"],
+                    on=[COLUMN_TRADE_DATE, COLUMN_ASSET],
                     how="anti",
                 )
 
         allowed_assets: dict[str, set[str]] = {}
-        for row in filtered_table.select("trade_date", "asset").to_dicts():
-            trade_date = str(row["trade_date"])
-            allowed_assets.setdefault(trade_date, set()).add(str(row["asset"]))
+        for row in filtered_table.select(COLUMN_TRADE_DATE, COLUMN_ASSET).to_dicts():
+            trade_date = str(row[COLUMN_TRADE_DATE])
+            allowed_assets.setdefault(trade_date, set()).add(str(row[COLUMN_ASSET]))
         for trade_date in market_data.prices:
             allowed_assets.setdefault(trade_date, set())
 

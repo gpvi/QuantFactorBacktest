@@ -11,7 +11,7 @@
 - 策略为什么可能起作用
 - 策略的优点、缺点和失效场景
 
-这份文档聚焦“策略本身”，不讨论底层模块分层设计。架构说明见 [ARCHITECTURE.md](/E:/Projects/QuantFactorBacktest/docs/ARCHITECTURE.md)。
+这份文档聚焦“策略本身”，不讨论底层模块分层设计。架构说明见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 2. 当前策略定义
 
@@ -38,14 +38,12 @@
 
 例如动量因子：
 
-\[
-f_{i,t}^{mom} = \frac{P_{i,t}}{P_{i,t-k}} - 1
-\]
+$f_{i,t}^{mom} = \frac{P_{i,t}}{P_{i,t-k}} - 1$
 
 其中：
 
-- \(P_{i,t}\) 表示股票 \(i\) 在日期 \(t\) 的价格
-- \(k\) 表示回看期
+- $P_{i,t}$ 表示股票 $i$ 在日期 $t$ 的价格
+- $k$ 表示回看期
 
 对于估值或规模因子，原始值可以直接来自财务字段，例如：
 
@@ -59,15 +57,13 @@ f_{i,t}^{mom} = \frac{P_{i,t}}{P_{i,t-k}} - 1
 
 公式：
 
-\[
-z_{i,t}^{(j)} = \frac{f_{i,t}^{(j)} - \mu_t^{(j)}}{\sigma_t^{(j)}}
-\]
+$z_{i,t}^{(j)} = \frac{f_{i,t}^{(j)} - \mu_t^{(j)}}{\sigma_t^{(j)}}$
 
 其中：
 
-- \(f_{i,t}^{(j)}\) 表示股票 \(i\) 在日期 \(t\) 的第 \(j\) 个因子原始值
-- \(\mu_t^{(j)}\) 表示该因子在日期 \(t\) 的横截面均值
-- \(\sigma_t^{(j)}\) 表示该因子在日期 \(t\) 的横截面标准差
+- $f_{i,t}^{(j)}$ 表示股票 $i$ 在日期 $t$ 的第 $j$ 个因子原始值
+- $\mu_t^{(j)}$ 表示该因子在日期 $t$ 的横截面均值
+- $\sigma_t^{(j)}$ 表示该因子在日期 $t$ 的横截面标准差
 
 含义：
 
@@ -78,43 +74,33 @@ z_{i,t}^{(j)} = \frac{f_{i,t}^{(j)} - \mu_t^{(j)}}{\sigma_t^{(j)}}
 
 综合评分公式：
 
-\[
-score_{i,t} = \sum_{j=1}^{m} w_j \cdot z_{i,t}^{(j)}
-\]
+$score_{i,t} = \sum_{j=1}^{m} w_j \cdot z_{i,t}^{(j)}$
 
 如果只有三个因子，则可写成：
 
-\[
-score_{i,t} = w_1 f_{1,i,t} + w_2 f_{2,i,t} + w_3 f_{3,i,t}
-\]
+$score_{i,t} = w_1 f_{1,i,t} + w_2 f_{2,i,t} + w_3 f_{3,i,t}$
 
 在当前框架语境下，更准确的写法是：
 
-\[
-score_{i,t} = w_1 z_{1,i,t} + w_2 z_{2,i,t} + w_3 z_{3,i,t}
-\]
+$score_{i,t} = w_1 z_{1,i,t} + w_2 z_{2,i,t} + w_3 z_{3,i,t}$
 
 因为这里参与加权的是标准化之后的因子值，不是原始值。
 
 ### 3.4 选股规则
 
-设当日股票池有 \(N_t\) 只股票，策略选取评分最高的前 `20%`。
+设当日股票池有 $N_t$ 只股票，策略选取评分最高的前 `20%`。
 
 选股数量：
 
-\[
-K_t = \max(1, \lceil 0.2 \times N_t \rceil)
-\]
+$K_t = \max(1, \lceil 0.2 \times N_t \rceil)$
 
-然后按 `score` 从高到低排序，选出前 \(K_t\) 只股票。
+然后按 `score` 从高到低排序，选出前 $K_t$ 只股票。
 
 ### 3.5 等权持仓
 
-如果某个调仓日选出 \(K_t\) 只股票，则每只股票的目标权重为：
+如果某个调仓日选出 $K_t$ 只股票，则每只股票的目标权重为：
 
-\[
-w_{i,t}^{port} = \frac{1}{K_t}
-\]
+$w_{i,t}^{port} = \frac{1}{K_t}$
 
 未入选股票权重为 0。
 
@@ -129,27 +115,21 @@ w_{i,t}^{port} = \frac{1}{K_t}
 
 ### 3.7 组合收益
 
-若在日期 \(t\) 持有组合至下一交易日 \(t+1\)，组合收益为：
+若在日期 $t$ 持有组合至下一交易日 $t+1$，组合收益为：
 
-\[
-R_{p,t+1} = \sum_i w_{i,t}^{port} \cdot R_{i,t+1}
-\]
+$R_{p,t+1} = \sum_i w_{i,t}^{port} \cdot R_{i,t+1}$
 
 其中个股收益：
 
-\[
-R_{i,t+1} = \frac{P_{i,t+1}}{P_{i,t}} - 1
-\]
+$R_{i,t+1} = \frac{P_{i,t+1}}{P_{i,t}} - 1$
 
 ### 3.8 交易成本和滑点
 
 当前框架按换手率统一扣减交易成本和滑点。
 
-设换手率为 \(Turnover_t\)，交易成本率为 \(c\)，滑点率为 \(s\)，则调仓期净收益为：
+设换手率为 $Turnover_t$，交易成本率为 $c$，滑点率为 $s$，则调仓期净收益为：
 
-\[
-R_{p,t+1}^{net} = R_{p,t+1}^{gross} - Turnover_t \cdot (c + s)
-\]
+$R_{p,t+1}^{net} = R_{p,t+1}^{gross} - Turnover_t \cdot (c + s)$
 
 这是当前实现中的简化模型。
 
@@ -177,14 +157,12 @@ R_{p,t+1}^{net} = R_{p,t+1}^{gross} - Turnover_t \cdot (c + s)
 
 ### 5.1 累计收益率
 
-\[
-R_{cum} = \frac{V_T}{V_0} - 1
-\]
+$R_{cum} = \frac{V_T}{V_0} - 1$
 
 其中：
 
-- \(V_0\) 是初始净值
-- \(V_T\) 是回测结束时净值
+- $V_0$ 是初始净值
+- $V_T$ 是回测结束时净值
 
 含义：
 
@@ -194,14 +172,12 @@ R_{cum} = \frac{V_T}{V_0} - 1
 
 当前实现采用离散复利年化：
 
-\[
-R_{ann} = \left(\frac{V_T}{V_0}\right)^{\frac{A}{T}} - 1
-\]
+$R_{ann} = \left(\frac{V_T}{V_0}\right)^{\frac{A}{T}} - 1$
 
 其中：
 
-- \(A\) 为年化周期，当前默认 `252`
-- \(T\) 为回测收益期数
+- $A$ 为年化周期，当前默认 `252`
+- $T$ 为回测收益期数
 
 含义：
 
@@ -214,27 +190,21 @@ R_{ann} = \left(\frac{V_T}{V_0}\right)^{\frac{A}{T}} - 1
 
 ### 5.3 单期平均收益率
 
-\[
-\bar{R} = \frac{1}{T}\sum_{t=1}^{T} R_t
-\]
+$\bar{R} = \frac{1}{T}\sum_{t=1}^{T} R_t$
 
 其中：
 
-- \(R_t\) 是每期组合收益率
+- $R_t$ 是每期组合收益率
 
 ### 5.4 波动率
 
 先计算单期收益标准差：
 
-\[
-\sigma = \sqrt{\frac{1}{T}\sum_{t=1}^{T}(R_t - \bar{R})^2}
-\]
+$\sigma = \sqrt{\frac{1}{T}\sum_{t=1}^{T}(R_t - \bar{R})^2}$
 
 再做年化：
 
-\[
-\sigma_{ann} = \sigma \cdot \sqrt{A}
-\]
+$\sigma_{ann} = \sigma \cdot \sqrt{A}$
 
 含义：
 
@@ -245,17 +215,13 @@ R_{ann} = \left(\frac{V_T}{V_0}\right)^{\frac{A}{T}} - 1
 
 当前实现采用无风险利率为 0 的简化版本：
 
-\[
-Sharpe = \frac{\bar{R}}{\sigma} \cdot \sqrt{A}
-\]
+$Sharpe = \frac{\bar{R}}{\sigma} \cdot \sqrt{A}$
 
 更一般的形式是：
 
-\[
-Sharpe = \frac{\bar{R} - R_f}{\sigma} \cdot \sqrt{A}
-\]
+$Sharpe = \frac{\bar{R} - R_f}{\sigma} \cdot \sqrt{A}$
 
-其中 \(R_f\) 为无风险收益率。
+其中 $R_f$ 为无风险收益率。
 
 含义：
 
@@ -269,23 +235,17 @@ Sharpe = \frac{\bar{R} - R_f}{\sigma} \cdot \sqrt{A}
 
 ### 5.6 最大回撤
 
-设时点 \(t\) 的净值为 \(V_t\)，历史峰值为：
+设时点 $t$ 的净值为 $V_t$，历史峰值为：
 
-\[
-Peak_t = \max(V_0, V_1, \dots, V_t)
-\]
+$Peak_t = \max(V_0, V_1, \dots, V_t)$
 
 则回撤为：
 
-\[
-DD_t = \frac{V_t}{Peak_t} - 1
-\]
+$DD_t = \frac{V_t}{Peak_t} - 1$
 
 最大回撤：
 
-\[
-MDD = \min_t DD_t
-\]
+$MDD = \min_t DD_t$
 
 含义：
 
@@ -294,9 +254,7 @@ MDD = \min_t DD_t
 
 ### 5.7 胜率
 
-\[
-WinRate = \frac{\#\{t \mid R_t > 0\}}{T}
-\]
+$WinRate = \frac{\#\{t \mid R_t > 0\}}{T}$
 
 含义：
 
@@ -311,9 +269,7 @@ WinRate = \frac{\#\{t \mid R_t > 0\}}{T}
 
 当前实现中，某次调仓的换手率定义为：
 
-\[
-Turnover_t = \frac{1}{2}\sum_i \left|w_{i,t}^{target} - w_{i,t-1}^{prev}\right|
-\]
+$Turnover_t = \frac{1}{2}\sum_i \left|w_{i,t}^{target} - w_{i,t-1}^{prev}\right|$
 
 初次建仓时记为 1。
 
@@ -324,11 +280,9 @@ Turnover_t = \frac{1}{2}\sum_i \left|w_{i,t}^{target} - w_{i,t-1}^{prev}\right|
 
 平均换手率：
 
-\[
-AvgTurnover = \frac{1}{M}\sum_{t=1}^{M} Turnover_t
-\]
+$AvgTurnover = \frac{1}{M}\sum_{t=1}^{M} Turnover_t$
 
-其中 \(M\) 是调仓次数。
+其中 $M$ 是调仓次数。
 
 ## 6. 为什么这种策略可能起作用
 

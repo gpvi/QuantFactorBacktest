@@ -11,8 +11,9 @@
 - 月度调仓
 - 交易成本和滑点
 
-项目结构、架构设计和策略解读请查看 [docs/ARCHITECTURE.md](/E:/Projects/QuantFactorBacktest/docs/ARCHITECTURE.md) 和 [docs/STRATEGY.md](/E:/Projects/QuantFactorBacktest/docs/STRATEGY.md)。
-如果需要按函数粒度查看数据如何流动，请看 [docs/DATA_FLOW.md](/E:/Projects/QuantFactorBacktest/docs/DATA_FLOW.md)。
+项目结构、架构设计和策略解读请查看 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 和 [docs/STRATEGY.md](docs/STRATEGY.md)。
+如果需要按函数粒度查看数据如何流动，请看 [docs/DATA_FLOW.md](docs/DATA_FLOW.md)。
+如果你是第一次参与开发，请先看 [docs/WIKI.md](docs/WIKI.md)。
 
 ## 安装
 
@@ -36,7 +37,7 @@ pip install -e .[data]
 默认缓存行为：
 
 - 当启用 `cache_dir` 时，`Tushare` 数据会缓存到 `cache_dir/cache.sqlite3`
-- 默认路径是 [`.cache/tushare/cache.sqlite3`](/E:/Projects/QuantFactorBacktest/.cache/tushare/cache.sqlite3)
+- 默认路径是 [`.cache/tushare/cache.sqlite3`](.cache/tushare/cache.sqlite3)
 - 不再使用旧的按接口拆分 JSON 目录缓存
 
 缓存目录结构：
@@ -88,29 +89,30 @@ python examples/tushare_run.py
 
 示例代码见：
 
-- [examples/minimal_run.py](/E:/Projects/QuantFactorBacktest/examples/minimal_run.py)
-- [examples/tushare_run.py](/E:/Projects/QuantFactorBacktest/examples/tushare_run.py)
+- [examples/minimal_run.py](examples/minimal_run.py)
+- [examples/tushare_run.py](examples/tushare_run.py)
 
 ## 常用入口
 
 数据层：
 
-- [src/quant_factor_backtest/data/cache.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/cache.py)
-- [src/quant_factor_backtest/data/tushare/client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
-- [src/quant_factor_backtest/data/tushare/fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
-- [src/quant_factor_backtest/data/tushare/assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
-- [src/quant_factor_backtest/data/tushare/convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
+- [src/quant_factor_backtest/data/cache.py](src/quant_factor_backtest/data/cache.py)
+- [src/quant_factor_backtest/data/tushare/client.py](src/quant_factor_backtest/data/tushare/client.py)
+- [src/quant_factor_backtest/data/tushare/fetch.py](src/quant_factor_backtest/data/tushare/fetch.py)
+- [src/quant_factor_backtest/data/tushare/assemble.py](src/quant_factor_backtest/data/tushare/assemble.py)
+- [src/quant_factor_backtest/data/tushare/convert.py](src/quant_factor_backtest/data/tushare/convert.py)
 
 研究主链路：
 
-- [src/quant_factor_backtest/research/pipeline.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/research/pipeline.py)
+- [src/quant_factor_backtest/research/pipeline.py](src/quant_factor_backtest/research/pipeline.py)
 
 回测引擎：
 
-- [src/quant_factor_backtest/backtest/engine.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/backtest/engine.py)
+- [src/quant_factor_backtest/backtest/engine.py](src/quant_factor_backtest/backtest/engine.py)
 
 ## 文档
 
-- 架构说明：[docs/ARCHITECTURE.md](/E:/Projects/QuantFactorBacktest/docs/ARCHITECTURE.md)
-- 数据流说明：[docs/DATA_FLOW.md](/E:/Projects/QuantFactorBacktest/docs/DATA_FLOW.md)
-- 策略说明：[docs/STRATEGY.md](/E:/Projects/QuantFactorBacktest/docs/STRATEGY.md)
+- 开发 Wiki：[docs/WIKI.md](docs/WIKI.md)
+- 架构说明：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 数据流说明：[docs/DATA_FLOW.md](docs/DATA_FLOW.md)
+- 策略说明：[docs/STRATEGY.md](docs/STRATEGY.md)

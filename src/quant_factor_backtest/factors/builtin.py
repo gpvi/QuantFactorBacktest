@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..constants import MOMENTUM_FACTOR_NAME
 from ..domain import FactorSignal, MarketData, TimeSeriesMatrix
 
 
 @dataclass(frozen=True)
 class MomentumFactor:
-    name: str = "momentum"
+    name: str = MOMENTUM_FACTOR_NAME
     lookback: int = 1
 
     def compute(self, market_data: MarketData) -> FactorSignal:

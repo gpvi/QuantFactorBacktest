@@ -3,13 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import ceil
 
+from ..constants import DEFAULT_TOP_PERCENT, REBALANCE_FREQUENCY_DAILY, REBALANCE_FREQUENCY_MONTHLY
 from ..domain import FactorSignal, PortfolioWeights, TimeSeriesMatrix
 
 
 @dataclass(frozen=True)
 class TopNPercentLongOnlyConstructor:
-    top_percent: float = 0.2
-    rebalance_frequency: str = "daily"
+    top_percent: float = DEFAULT_TOP_PERCENT
+    rebalance_frequency: str = REBALANCE_FREQUENCY_DAILY
 
     def build(self, signal: FactorSignal) -> PortfolioWeights:
         weights: TimeSeriesMatrix = {}
@@ -30,9 +31,9 @@ class TopNPercentLongOnlyConstructor:
         return PortfolioWeights(weights=weights)
 
     def _rebalance_dates(self, dates: list[str]) -> list[str]:
-        if self.rebalance_frequency == "daily":
+        if self.rebalance_frequency == REBALANCE_FREQUENCY_DAILY:
             return dates
-        if self.rebalance_frequency != "monthly":
+        if self.rebalance_frequency != REBALANCE_FREQUENCY_MONTHLY:
             raise ValueError(f"Unsupported rebalance_frequency: {self.rebalance_frequency}")
         selected: list[str] = []
         seen_months: set[str] = set()
