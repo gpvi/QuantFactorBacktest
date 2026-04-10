@@ -13,6 +13,7 @@
 
 它不是用户入门文档，而是面向后续开发、维护和扩展的工程说明。
 如果要看策略逻辑、指标公式和优缺点分析，见 [STRATEGY.md](/E:/Projects/QuantFactorBacktest/docs/STRATEGY.md)。
+如果要看按函数粒度展开的数据流，见 [DATA_FLOW.md](/E:/Projects/QuantFactorBacktest/docs/DATA_FLOW.md)。
 
 ## 2. 当前框架定位
 
@@ -24,7 +25,8 @@
 
 - `Tushare` 数据接入
 - 基于环境变量读取 `TUSHARE_TOKEN`
-- 本地缓存，减少重复 API 调用
+- 基于 SQLite 的本地缓存，减少重复 API 调用
+- 基于 `polars` 的列式数据处理
 - 股票池过滤
 - 多因子横截面 `z-score`
 - 因子加权合成
@@ -61,7 +63,13 @@
 
 ### 3.2 `data`
 
-路径：[tushare.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare.py)
+路径：
+
+- [cache.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/cache.py)
+- [client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+- [fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
+- [assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
+- [convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
 
 这一层负责外部数据源接入和转换。
 
@@ -69,19 +77,37 @@
 
 - `TushareConfig`
   管理 token、复权方式、缓存目录
+- `TushareFetcher`
+  只负责和 `Tushare` API 通信并返回原始 records
 - `TushareDataClient`
-  负责：
+  作为数据编排入口，负责：
   拉取价格
   拉取 `daily_basic`
   生成因子信号
   生成股票池过滤所需元数据
-  做本地 JSON 缓存
+  走本地 SQLite 缓存
+  串联 `fetch / assemble / convert`
+
+- `assemble.py`
+  负责把 `daily / adj_factor / suspend_d / stk_limit / stock_basic` 等原始 records 组装成标准 `polars` 表
+
+- `convert.py`
+  负责把中间表转换成 `MarketData` / `FactorSignal`
+
+- `CacheBackend`
+  统一缓存接口
+- `SqliteCache`
+  当前默认缓存实现
+- `SqlJsonCache`
+  为后续迁移到 `DuckDB` 这类 SQL/分析型后端预留的抽象层
 
 设计重点：
 
 - `Tushare` 依赖只留在数据层
 - 对上层暴露的是 `MarketData` 和 `FactorSignal`
 - API 结果可缓存，避免研究迭代时被限额和延迟拖慢
+- 多表 join 和批量字段计算尽量收敛在数据层完成，而不是把逐行处理扩散到研究层
+- 目录按数据源聚合，减少 `source / tables / adapters` 横切拆分带来的跳转成本
 
 ### 3.3 `universe`
 
@@ -105,6 +131,7 @@
 - 股票池过滤独立于因子层
 - 先过滤可投资标的，再进行因子合成和组合构建
 - 避免“先打分再过滤”导致横截面统计失真
+- 当前过滤实现已经切到 `polars` 列式表达式，减少 Python 字典循环
 
 ### 3.4 `factors`
 
@@ -222,6 +249,14 @@
 - 因子研究和组合构建分离
 - 组合构建和回测执行分离
 
+如果需要继续追到函数级别，例如：
+
+- `fetch_market_data()` 内部如何走缓存
+- `build_universe_table()` 在哪一步补 `is_st / listed_days`
+- `MarketData` 在哪里被重新转回 `DataFrame`
+
+请直接看 [DATA_FLOW.md](/E:/Projects/QuantFactorBacktest/docs/DATA_FLOW.md)。
+
 ## 5. 当前已经做过的优化点
 
 ### 5.1 用统一领域对象隔离外部数据源
@@ -240,15 +275,30 @@
 
 优化点：
 
-- `TushareDataClient` 对请求结果按查询条件落本地 JSON
+- `TushareDataClient` 对请求结果按查询条件落本地 SQLite
+- 缓存读写通过统一 `CacheBackend` 抽象完成
 
 价值：
 
 - 避免重复 API 请求
 - 降低回测迭代时的等待时间
 - 避免 `Tushare` 调用次数成为瓶颈
+- 为后续替换成 `DuckDB` 等后端保留迁移空间
 
-### 5.3 股票池过滤前置
+### 5.3 数据接入和股票池过滤迁移到 `polars`
+
+优化点：
+
+- `daily`、`adj_factor`、`suspend_d`、`stk_limit`、`stock_basic` 的多表对齐改为 `polars` 列式处理
+- `UniverseFilter` 过滤逻辑改为 `polars` 表达式过滤
+
+价值：
+
+- 减少 Python 层逐行映射与双层字典遍历
+- 把价格拼接、状态字段计算、过滤条件判断收敛为批量操作
+- 为后续把研究层和组合层继续迁到列式计算打下基础
+
+### 5.4 股票池过滤前置
 
 优化点：
 
@@ -260,7 +310,7 @@
 - 避免不可投资股票进入横截面分布
 - 减少评分污染
 
-### 5.4 因子标准化统一放到研究层
+### 5.5 因子标准化统一放到研究层
 
 优化点：
 
@@ -272,7 +322,7 @@
 - 多因子比较口径一致
 - 更便于后续替换成 winsorize + standardize + neutralize 流水线
 
-### 5.5 交易成本和滑点显式进入回测引擎
+### 5.6 交易成本和滑点显式进入回测引擎
 
 优化点：
 
@@ -284,7 +334,7 @@
 - 换手率与收益之间的关系可追踪
 - 后续接更精细的执行模型更自然
 
-### 5.6 TDD 驱动实现
+### 5.7 TDD 驱动实现
 
 优化点：
 
@@ -365,7 +415,18 @@
 
 虽然框架分层已准备好，但现在真正接通的外部数据源只有 `Tushare`。
 
-### 7.4 结果分析能力还弱
+### 7.4 研究和回测主链路仍未完全列式化
+
+当前 `data` 和 `universe` 已经迁到 `polars`，但下面这些部分仍以 Python 字典矩阵为主：
+
+- 因子横截面标准化
+- 多因子合成
+- 组合构建排序
+- 回测收益聚合
+
+这意味着项目已经完成了“数据搬运”和“基础过滤”层面的列式化，但主研究链路还有继续提速空间。
+
+### 7.5 结果分析能力还弱
 
 当前有基础绩效指标，但还没有：
 
@@ -387,8 +448,11 @@
    区分买入限制和卖出限制
    处理停牌与涨跌停下的调仓失败
 
-3. 本地数据存储升级
-   从 JSON 缓存升级到 CSV/Parquet
+3. 继续把研究主链路迁移到 `polars`
+   把 `z-score`、多因子合成、组合构建等横截面计算迁到列式实现
+
+4. 本地数据存储升级
+   评估从 SQLite 缓存进一步升级到 DuckDB / Parquet
    便于批量回测和更大样本
 
 ### 8.2 第二优先级
@@ -411,8 +475,11 @@
 3. [construction.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/portfolio/construction.py)
 4. [engine.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/backtest/engine.py)
 5. [filters.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/universe/filters.py)
-6. [tushare.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare.py)
-7. [tests](/E:/Projects/QuantFactorBacktest/tests)
+6. [client.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/client.py)
+7. [fetch.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/fetch.py)
+8. [assemble.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/assemble.py)
+9. [convert.py](/E:/Projects/QuantFactorBacktest/src/quant_factor_backtest/data/tushare/convert.py)
+10. [tests](/E:/Projects/QuantFactorBacktest/tests)
 
 ## 10. 总结
 

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import polars as pl
+
+from ..data.tushare.convert import filtered_market_data_from_frame, market_data_to_table
 from ..domain import FactorSignal, MarketData, TimeSeriesMatrix
 
 
@@ -28,98 +31,73 @@ class UniverseFilter:
     config: UniverseFilterConfig
 
     def apply(self, market_data: MarketData) -> FilteredMarketContext:
-        filtered_prices: TimeSeriesMatrix = {}
+        # Universe filtering is expressed in polars so every rule is applied to the
+        # same tabular view before we convert back to the domain object.
+        market_table = market_data_to_table(market_data)
+        filter_expressions: list[pl.Expr] = []
+        if self.config.min_price is not None:
+            filter_expressions.append(pl.col("price") >= self.config.min_price)
+        if self.config.exclude_st:
+            filter_expressions.append(~pl.col("is_st"))
+        if self.config.exclude_suspended:
+            filter_expressions.append(~pl.col("is_suspended"))
+        if self.config.min_listed_days is not None:
+            filter_expressions.append(pl.col("listed_days") >= self.config.min_listed_days)
+        if self.config.exclude_limit_up:
+            filter_expressions.append(~pl.col("is_limit_up"))
+        if self.config.exclude_limit_down:
+            filter_expressions.append(~pl.col("is_limit_down"))
+        if self.config.min_turnover_amount is not None:
+            filter_expressions.append(pl.col("turnover_amount") >= self.config.min_turnover_amount)
+
+        filtered_table = market_table
+        for filter_expression in filter_expressions:
+            filtered_table = filtered_table.filter(filter_expression)
+
+        manually_excluded_assets = self.config.excluded_assets or {}
+        if manually_excluded_assets:
+            excluded_asset_rows = [
+                {"trade_date": date, "asset": asset}
+                for date, assets in manually_excluded_assets.items()
+                for asset in assets
+            ]
+            if excluded_asset_rows:
+                excluded_asset_table = pl.DataFrame(excluded_asset_rows)
+                filtered_table = filtered_table.join(
+                    excluded_asset_table,
+                    on=["trade_date", "asset"],
+                    how="anti",
+                )
+
         allowed_assets: dict[str, set[str]] = {}
-        for date, cross_section in market_data.prices.items():
-            excluded = (self.config.excluded_assets or {}).get(date, set())
-            filtered_cross_section = {
-                asset: price
-                for asset, price in cross_section.items()
-                if self._is_allowed(market_data, date, asset, price, excluded)
-            }
-            filtered_prices[date] = filtered_cross_section
-            allowed_assets[date] = set(filtered_cross_section)
+        for row in filtered_table.select("trade_date", "asset").to_dicts():
+            trade_date = str(row["trade_date"])
+            allowed_assets.setdefault(trade_date, set()).add(str(row["asset"]))
+        for trade_date in market_data.prices:
+            allowed_assets.setdefault(trade_date, set())
+
+        # The research layer still consumes MarketData, so the filtered table is
+        # adapted back into the existing domain structure here.
+        filtered_market_data = filtered_market_data_from_frame(
+            filtered_table,
+            list(market_data.prices.keys()),
+            include_is_st=market_data.is_st is not None,
+            include_is_suspended=market_data.is_suspended is not None,
+            include_listed_days=market_data.listed_days is not None,
+            include_is_limit_up=market_data.is_limit_up is not None,
+            include_is_limit_down=market_data.is_limit_down is not None,
+            include_turnover_amount=market_data.turnover_amount is not None,
+        )
         return FilteredMarketContext(
-            market_data=MarketData(
-                prices=filtered_prices,
-                is_st=self._filter_metadata(market_data.is_st, allowed_assets),
-                is_suspended=self._filter_metadata(market_data.is_suspended, allowed_assets),
-                listed_days=self._filter_metadata(market_data.listed_days, allowed_assets),
-                is_limit_up=self._filter_metadata(market_data.is_limit_up, allowed_assets),
-                is_limit_down=self._filter_metadata(market_data.is_limit_down, allowed_assets),
-                turnover_amount=self._filter_metadata(market_data.turnover_amount, allowed_assets),
-            ),
+            market_data=filtered_market_data,
             allowed_assets=allowed_assets,
         )
 
     def apply_to_signal(self, signal: FactorSignal, allowed_assets: dict[str, set[str]]) -> FactorSignal:
         filtered_values: TimeSeriesMatrix = {}
-        for date, cross_section in signal.values.items():
-            allowed = allowed_assets.get(date, set(cross_section))
-            filtered_values[date] = {
-                asset: value for asset, value in cross_section.items() if asset in allowed
+        for trade_date, cross_section in signal.values.items():
+            allowed_assets_on_date = allowed_assets.get(trade_date, set(cross_section))
+            filtered_values[trade_date] = {
+                asset: value for asset, value in cross_section.items() if asset in allowed_assets_on_date
             }
         return FactorSignal(name=signal.name, values=filtered_values)
-
-    def _is_allowed(
-        self,
-        market_data: MarketData,
-        date: str,
-        asset: str,
-        price: float,
-        excluded: set[str],
-    ) -> bool:
-        if asset in excluded:
-            return False
-        if self.config.min_price is not None and price < self.config.min_price:
-            return False
-        if self.config.exclude_st and self._flag(market_data.is_st, date, asset):
-            return False
-        if self.config.exclude_suspended and self._flag(market_data.is_suspended, date, asset):
-            return False
-        if self.config.min_listed_days is not None:
-            listed_days = self._value(market_data.listed_days, date, asset)
-            if listed_days is not None and listed_days < self.config.min_listed_days:
-                return False
-        if self.config.exclude_limit_up and self._flag(market_data.is_limit_up, date, asset):
-            return False
-        if self.config.exclude_limit_down and self._flag(market_data.is_limit_down, date, asset):
-            return False
-        if self.config.min_turnover_amount is not None:
-            turnover_amount = self._value(market_data.turnover_amount, date, asset)
-            if turnover_amount is not None and turnover_amount < self.config.min_turnover_amount:
-                return False
-        return True
-
-    def _flag(
-        self,
-        values: dict[str, dict[str, bool]] | None,
-        date: str,
-        asset: str,
-    ) -> bool:
-        return bool(self._value(values, date, asset))
-
-    def _value(
-        self,
-        values: dict[str, dict[str, float | int | bool]] | None,
-        date: str,
-        asset: str,
-    ) -> float | int | bool | None:
-        if values is None:
-            return None
-        return values.get(date, {}).get(asset)
-
-    def _filter_metadata(
-        self,
-        values: dict[str, dict[str, float | int | bool]] | None,
-        allowed_assets: dict[str, set[str]],
-    ) -> dict[str, dict[str, float | int | bool]] | None:
-        if values is None:
-            return None
-        filtered: dict[str, dict[str, float | int | bool]] = {}
-        for date, cross_section in values.items():
-            allowed = allowed_assets.get(date, set())
-            filtered[date] = {
-                asset: value for asset, value in cross_section.items() if asset in allowed
-            }
-        return filtered

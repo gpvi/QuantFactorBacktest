@@ -1,7 +1,7 @@
 """Multi-factor research and backtest framework."""
 
 from .backtest.engine import BacktestEngine
-from .data.tushare import TushareConfig, TushareDataClient
+from .data import TushareConfig, TushareDataClient
 from .domain import FactorSignal, MarketData, PortfolioWeights
 from .factors.builtin import DailyBasicFieldFactor
 from .portfolio.construction import TopNPercentLongOnlyConstructor
