@@ -33,3 +33,11 @@ pytest-cache-files-*/
 quant_factor_backtest_cache_*/
 quant_factor_backtest_file_cache_*/
 tests/tmp*/
+tests/.tmp_tests/
+tests/temp_paths.py
+
+.tmp/
+bash.exe.stackdump
+
+scripts/
+qfb.spec
