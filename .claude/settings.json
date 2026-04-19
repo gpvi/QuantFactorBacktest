@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from src.quant_factor_backtest.models import DATASET_MARKET_DAILY, FACTOR_NAME_COLUMN, normalize_market_daily_table, ANNUALIZATION_FACTOR_COLUMN; print\\('models import OK'\\)\")",
+      "Bash(python -m pytest tests/test_dataset_store.py tests/test_pipeline.py -v --tb=short)",
+      "Bash(PYTHONPATH=src python -m pytest tests/test_dataset_store.py tests/test_pipeline.py -v --tb=short)",
+      "Bash(PYTHONPATH=src python -m pytest tests/test_backtest.py -v)"
+    ]
+  }
+}

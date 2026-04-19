@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PYTHONPATH=src python examples/integration_test.py)",
+      "Bash(python examples/integration_test.py)",
+      "Bash(iconv -f gbk -t utf-8)",
+      "Bash(powershell -Command \"D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe -c \\\\\"from quant_factor_backtest.backtest import BacktestEngine; print\\('OK'\\)\\\\\"\")",
+      "Bash(powershell -Command \"D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe -c 'from quant_factor_backtest.models import DailyPriceRecord, TushareConfig; print\\(DailyPriceRecord\\(trade_date=\\\\\"2024-01-01\\\\\", ts_code=\\\\\"000001.SZ\\\\\", close=100.0\\)\\)'\")",
+      "Bash(powershell -Command \"D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe examples/test_models.py\")",
+      "Bash(powershell -Command \"D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe -m pytest tests/ -x --tb=short 2>&1 | tail -30\")",
+      "Bash(powershell -Command \"[Console]::OutputEncoding = [Text.Encoding]::UTF8; D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe -m pytest tests/ -x --tb=short 2>&1 | tail -20\")",
+      "Bash(powershell -Command \"[Console]::OutputEncoding = [Text.Encoding]::UTF8; D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe examples/full_pipeline_test.py\")",
+      "Bash(powershell -Command \"[Console]::OutputEncoding = [Text.Encoding]::UTF8; D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe -m pytest tests/ -x --tb=short 2>&1 | tail -15\")",
+      "Bash(powershell -Command \"mamba activate py12; python -c 'import quant_factor_backtest; print\\(ok\\)'\")",
+      "Bash(powershell -ExecutionPolicy Bypass -Command \"mamba activate py12; python -m pytest tests/ -x -q 2>&1 | Select-Object -First 60\")",
+      "Bash(powershell -ExecutionPolicy Bypass -Command \"D:\\\\miniforge3\\\\envs\\\\py12\\\\python.exe -m pytest tests/ -x -q 2>&1 | Select-Object -First 60\")",
+      "Bash(python -c \"from src.quant_factor_backtest.models import DATASET_MARKET_DAILY, FACTOR_NAME_COLUMN, normalize_market_daily_table; print\\('models import OK'\\)\")"
+    ]
+  }
+}
