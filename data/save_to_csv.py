@@ -8,6 +8,8 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 import polars as pl
 
+from fetch_data import TushareDataFetcher
+
 
 def save_to_csv(df: Union[pd.DataFrame, pl.DataFrame], file_path: Union[str, Path], index: bool = False) -> Path:
     """
@@ -225,3 +227,208 @@ def save_financial_data(
         start_date=start_date,
         end_date=end_date,
     )
+
+
+def fetch_and_save_daily_by_stock(
+    ts_codes: List[str],
+    start_date: str,
+    end_date: str,
+    output_dir: Union[str, Path],
+) -> Dict[str, Path]:
+    """
+    获取日线行情数据并按股票分别保存到 CSV 文件
+
+    组合操作：从 Tushare 获取数据 -> 按股票分别保存
+
+    Args:
+        ts_codes: 股票代码列表
+        start_date: 开始日期
+        end_date: 结束日期
+        output_dir: 输出目录
+
+    Returns:
+        字典，键为股票代码，值为保存的文件路径
+    """
+    fetcher = TushareDataFetcher()
+    df = fetcher.fetch_daily_by_query(ts_codes, start_date, end_date)
+
+    if df.empty:
+        return {}
+
+    return save_to_csv_by_stock(
+        df=df,
+        output_dir=output_dir,
+        code_column="ts_code",
+        date_column="trade_date",
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+def fetch_and_save_valuation_by_stock(
+    ts_codes: List[str],
+    start_date: str,
+    end_date: str,
+    output_dir: Union[str, Path],
+) -> Dict[str, Path]:
+    """
+    获取每日估值指标数据并按股票分别保存到 CSV 文件
+
+    组合操作：从 Tushare 获取数据 -> 按股票分别保存
+
+    Args:
+        ts_codes: 股票代码列表
+        start_date: 开始日期
+        end_date: 结束日期
+        output_dir: 输出目录
+
+    Returns:
+        字典，键为股票代码，值为保存的文件路径
+    """
+    fetcher = TushareDataFetcher()
+    df = fetcher.fetch_daily_basic(ts_codes, start_date, end_date)
+
+    if df.empty:
+        return {}
+
+    return save_stock_matrix_by_stock(
+        df=df,
+        output_dir=output_dir,
+        code_column="ts_code",
+        date_column="trade_date",
+        data_type="valuation",
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+class DataManager:
+    """
+    数据管理类
+    组合数据获取和保存功能
+    """
+
+    def __init__(self, output_dir: Optional[Path] = None):
+        """
+        初始化数据管理器
+
+        Args:
+            output_dir: 输出目录，默认使用当前目录下的 csv 文件夹
+        """
+        self.fetcher = TushareDataFetcher()
+        if output_dir is None:
+            output_dir = Path(__file__).parent / "csv"
+        self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def fetch_daily_and_save_by_stock(
+        self,
+        ts_codes: List[str],
+        start_date: str,
+        end_date: str,
+        output_dir: Optional[Path] = None,
+    ) -> Dict[str, Path]:
+        """
+        获取日线行情数据并按股票分别保存
+
+        Args:
+            ts_codes: 股票代码列表
+            start_date: 开始日期 (YYYYMMDD)
+            end_date: 结束日期 (YYYYMMDD)
+            output_dir: 输出目录，如未指定则使用默认目录
+
+        Returns:
+            字典，键为股票代码，值为保存的文件路径
+        """
+        if output_dir is None:
+            output_dir = self.output_dir
+
+        df = self.fetcher.fetch_daily_by_query(ts_codes, start_date, end_date)
+
+        if df.empty:
+            return {}
+
+        saved_files = save_to_csv_by_stock(
+            df=df,
+            output_dir=output_dir,
+            code_column="ts_code",
+            date_column="trade_date",
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        return saved_files
+
+    def fetch_daily_basic_and_save_by_stock(
+        self,
+        ts_codes: List[str],
+        start_date: str,
+        end_date: str,
+        output_dir: Optional[Path] = None,
+    ) -> Dict[str, Path]:
+        """
+        获取每日估值指标数据并按股票分别保存
+
+        Args:
+            ts_codes: 股票代码列表
+            start_date: 开始日期 (YYYYMMDD)
+            end_date: 结束日期 (YYYYMMDD)
+            output_dir: 输出目录，如未指定则使用默认目录
+
+        Returns:
+            字典，键为股票代码，值为保存的文件路径
+        """
+        if output_dir is None:
+            output_dir = self.output_dir
+
+        df = self.fetcher.fetch_daily_basic(ts_codes, start_date, end_date)
+
+        if df.empty:
+            return {}
+
+        saved_files = save_stock_matrix_by_stock(
+            df=df,
+            output_dir=output_dir,
+            code_column="ts_code",
+            date_column="trade_date",
+            data_type="valuation",
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        return saved_files
+
+    def fetch_daily_and_save_combined(
+        self,
+        ts_codes: List[str],
+        start_date: str,
+        end_date: str,
+        output_dir: Optional[Path] = None,
+        file_name: Optional[str] = None,
+    ) -> Path:
+        """
+        获取日线行情数据并保存为单一文件（向后兼容）
+
+        Args:
+            ts_codes: 股票代码列表
+            start_date: 开始日期
+            end_date: 结束日期
+            output_dir: 输出目录
+            file_name: 文件名，如未指定则自动生成
+
+        Returns:
+            保存的文件路径
+        """
+        if output_dir is None:
+            output_dir = self.output_dir
+
+        df = self.fetcher.fetch_daily_by_query(ts_codes, start_date, end_date)
+
+        if file_name is None:
+            codes_str = "_".join(c.replace(".", "_") for c in ts_codes)
+            file_name = f"combined_{codes_str}_{start_date}_{end_date}.csv"
+
+        file_path = output_dir / file_name
+        save_to_csv(df, file_path)
+
+        return file_path

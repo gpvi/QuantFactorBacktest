@@ -237,6 +237,56 @@ def test_backward_compatibility(test_dir: Path):
         print(f"加载失败: {e}")
 
 
+def test_architecture_design():
+    """
+    测试架构设计：验证 fetch 和 save 的独立性
+    """
+    print("\n" + "=" * 60)
+    print("测试 7: 架构设计验证 - fetch 和 save 的独立性")
+    print("=" * 60)
+
+    print("\n检查模块依赖关系:")
+
+    try:
+        import inspect
+        import fetch_data
+        import save_to_csv
+
+        fetch_source = inspect.getsourcefile(fetch_data)
+        save_source = inspect.getsourcefile(save_to_csv)
+
+        print(f"  fetch_data.py: {fetch_source}")
+        print(f"  save_to_csv.py: {save_source}")
+
+        with open(fetch_source, 'r', encoding='utf-8') as f:
+            fetch_content = f.read()
+
+        with open(save_source, 'r', encoding='utf-8') as f:
+            save_content = f.read()
+
+        fetch_imports_save = 'save_to_csv' in fetch_content or 'import save' in fetch_content
+        save_imports_fetch = 'fetch_data' in save_content or 'from fetch' in save_content
+
+        print(f"\n依赖关系检查:")
+        print(f"  fetch_data 导入 save_to_csv: {'❌ 是' if fetch_imports_save else '✓ 否'}")
+        print(f"  save_to_csv 导入 fetch_data: {'✓ 是（这是正确的，save 依赖 fetch）' if save_imports_fetch else '否'}")
+
+        if not fetch_imports_save and save_imports_fetch:
+            print("\n✓ 架构设计正确：单向依赖关系")
+            print("  - fetch_data.py: 纯数据获取（独立，无 save 依赖）")
+            print("  - save_to_csv.py: 数据保存 + 组合操作（依赖 fetch）")
+            print("  - 依赖方向: save_to_csv → fetch_data（单向，正确）")
+        elif fetch_imports_save:
+            print("\n❌ 架构设计存在问题：fetch_data 依赖了 save_to_csv")
+            print("  应该只有 save_to_csv 依赖 fetch_data，而不是反向依赖")
+        else:
+            print("\n⚠️  架构设计：save_to_csv 没有依赖 fetch_data")
+            print("  如果 save_to_csv 中包含 fetch_and_save 组合操作，应该导入 fetch_data")
+
+    except Exception as e:
+        print(f"  架构检查出错: {e}")
+
+
 def main():
     """
     主测试函数
@@ -255,6 +305,7 @@ def main():
     test_save_valuation_data()
     test_list_available_stocks(test_dir)
     test_backward_compatibility(test_dir)
+    test_architecture_design()
 
     print("\n" + "=" * 60)
     print("测试完成！")
