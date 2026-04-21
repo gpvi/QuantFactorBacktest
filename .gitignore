@@ -1,43 +1,36 @@
-.cache/
-!.cache/.gitkeep
+# Python
 __pycache__/
 *.py[cod]
-*.pyd
-*.pyo
-
+*$py.class
+*.so
 .Python
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-.coverage.*
-htmlcov/
+*.pyc
 
-.venv/
+# Virtual environments
 venv/
 env/
-ENV/
+.venv/
+.env/
 
-build/
-dist/
-*.egg-info/
-.eggs/
-
+# IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
+# Data directories
+data/csv/
+data/csv_test/
+*.csv
+
+# Logs
+*.log
+logs/
+
+# OS files
 .DS_Store
 Thumbs.db
 
-pytest-cache-files-*/
-quant_factor_backtest_cache_*/
-quant_factor_backtest_file_cache_*/
-tests/tmp*/
-tests/.tmp_tests/
-tests/temp_paths.py
-
-.tmp/
-bash.exe.stackdump
-
-scripts/
-qfb.spec
+# Trae specific
+.trae/
